@@ -1,4 +1,4 @@
-"team_name": "Team 1" # Your team name
+"team_name": "Zephyr" # Your team name
 "eval_method": ["mcqa"] # mcqa, reward, rag, compression
 "task_type": "causal_lm" # causal_lm, seq2seq
 "policy_model_path": "./checkpoints/best_model/" # Your path to the final checkpoint
