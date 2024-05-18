@@ -5,6 +5,7 @@ import torch.nn.functional as F
 from transformers import AutoModelForCausalLM, AutoModelForSeq2SeqLM
 from models.model_base import PreTrainedModelWrapper
 
+
 class AutoDPOModelForCausalLM(PreTrainedModelWrapper):
     """
     An autoregressive model with support for custom modules in addition to the language model.
@@ -160,7 +161,7 @@ class AutoDPOModelForCausalLM(PreTrainedModelWrapper):
         """Push the model to the Hugging Face hub."""
         ###########################################################################################
         # TODO (Optional): Please uncomment the following line to add the custom module to the hub model
-        # Make sure custom_module is repalced with the name of your custom module class
+        # Make sure custom_module is replaced with the name of your custom module class
         # =========================================================================================
         # self.pretrained_model.custom_module = self.custom_module
         ###########################################################################################
@@ -246,7 +247,7 @@ class AutoDPOModelForCausalLM(PreTrainedModelWrapper):
         reference_rejected_logps: torch.FloatTensor,
     ):
         """
-        Computes the reward socres of the chosen and reject responses by implementing the DPO reward function
+        Computes the reward scores of the chosen and reject responses by implementing the DPO reward function
         Reference of the DPO reward function: https://arxiv.org/pdf/2305.18290.pdf
 
         Args:
@@ -306,8 +307,9 @@ class AutoDPOModelForCausalLM(PreTrainedModelWrapper):
 
         return output_dict
 
+
 class AutoDPOModelForSeq2SeqLM(PreTrainedModelWrapper):
-    r"""
+    """
     A seq2seq model with support for custom modules in addition to the transformer model.
     This class inherits from `~trl.PreTrainedModelWrapper` and wraps a
     `transformers.PreTrainedModel` class. The wrapper class supports classic functions
