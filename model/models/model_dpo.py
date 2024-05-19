@@ -32,7 +32,7 @@ class AutoDPOModelForCausalLM(PreTrainedModelWrapper):
     supported_args = ()
     ####################################################################################
 
-    def __init__(self, pretrained_model, **kwargs):
+    def __init__(self, pretrained_model, beta=0.1, **kwargs):
         r"""
         Initializes the model.
 
@@ -48,6 +48,7 @@ class AutoDPOModelForCausalLM(PreTrainedModelWrapper):
         if not any(hasattr(self.pretrained_model, attribute) for attribute in self.lm_head_namings):
             raise ValueError("The model does not have a language model head, please use a model that has one.")
 
+        self.beta = beta
         ###########################################################################################
         # TODO (Optional): Please uncomment the following lines to initialize your custom module
         # Make sure CustomModule is repalced with the name of your custom module class
@@ -263,10 +264,21 @@ class AutoDPOModelForCausalLM(PreTrainedModelWrapper):
             output_dict (`dict`):
                 A dictionary containing the reward scores of the chosen and rejected responses.
         """
+
+        # log(p_policy / p_reference) = log(p_policy) - log(p_reference)
+        chosen_ratio = policy_chosen_logps - reference_chosen_logps
+        rejected_ratio = policy_rejected_logps - reference_rejected_logps
+
+        # scales ratios
+        chosen_rewards = self.beta * chosen_ratio.detach()
+        rejected_rewards = self.beta * rejected_ratio.detach()
+
         output_dict = {
-            "chosen_rewards": [],
-            "rejected_rewards": []
+            "chosen_rewards": chosen_rewards.tolist(),
+            "rejected_rewards": rejected_rewards.tolist()
         }
+
+        return output_dict
 
         ########################################################################
         # TODO: Please implement the prediction step that computes the rewards
@@ -275,6 +287,7 @@ class AutoDPOModelForCausalLM(PreTrainedModelWrapper):
         # ======================================================================
         raise NotImplementedError
         ########################################################################
+
 
         return output_dict
 
