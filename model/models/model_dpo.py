@@ -264,12 +264,17 @@ class AutoDPOModelForCausalLM(PreTrainedModelWrapper):
             output_dict (`dict`):
                 A dictionary containing the reward scores of the chosen and rejected responses.
         """
+        ########################################################################
+        # TODO: Please implement the prediction step that computes the rewards
+        # ======================================================================
+        # You need to return one reward score for each chosen and rejected response.
+        # ======================================================================
 
         # log(p_policy / p_reference) = log(p_policy) - log(p_reference)
         chosen_ratio = policy_chosen_logps - reference_chosen_logps
         rejected_ratio = policy_rejected_logps - reference_rejected_logps
 
-        # scales ratios
+        # scaled ratios
         chosen_rewards = self.beta * chosen_ratio.detach()
         rejected_rewards = self.beta * rejected_ratio.detach()
 
@@ -278,17 +283,7 @@ class AutoDPOModelForCausalLM(PreTrainedModelWrapper):
             "rejected_rewards": rejected_rewards.tolist()
         }
 
-        return output_dict
-
         ########################################################################
-        # TODO: Please implement the prediction step that computes the rewards
-        # ======================================================================
-        # You need to return one reward score for each chosen and rejected response.
-        # ======================================================================
-        raise NotImplementedError
-        ########################################################################
-
-
         return output_dict
 
     def prediction_step_mcqa(self, batch, tokenizer):
