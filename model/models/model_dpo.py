@@ -200,12 +200,17 @@ class AutoDPOModelForCausalLM(PreTrainedModelWrapper):
         if self.is_peft_model and self.pretrained_model.active_peft_config.peft_type == "PREFIX_TUNING":
             kwargs.pop("past_key_values")
 
-        output_dict = {}
-
         ###############################################################
         # TODO: Please implement your customized forward pass here
         # =============================================================
-        raise NotImplementedError
+        output = self.pretrained_model(input_ids=input_ids, attention_mask=attention_mask, **kwargs)
+
+        output_dict = {
+            "logits": output.last_hidden_state,
+            "hidden_states": output.hidden_states,
+            "past_key_values": output.past_key_values,
+            "attentions": output.attentions
+        }
         ###############################################################
 
         return output_dict
