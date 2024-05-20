@@ -2,8 +2,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from transformers import AutoModelForCausalLM, AutoModelForSeq2SeqLM
+from transformers import AutoModelForCausalLM, AutoModelForSeq2SeqLM, AutoTokenizer
 from models.model_base import PreTrainedModelWrapper
+from trl import DPOTrainer
 
 
 class AutoDPOModelForCausalLM(PreTrainedModelWrapper):
@@ -32,7 +33,7 @@ class AutoDPOModelForCausalLM(PreTrainedModelWrapper):
     supported_args = ()
     ####################################################################################
 
-    def __init__(self, pretrained_model, beta=0.1, **kwargs):
+    def __init__(self, pretrained_model, **kwargs):
         r"""
         Initializes the model.
 
@@ -40,6 +41,7 @@ class AutoDPOModelForCausalLM(PreTrainedModelWrapper):
             pretrained_model (`transformers.PreTrainedModel`):
                 The model to wrap. It should be a causal language model such as GPT2.
                 or any model mapped inside the `AutoModelForCausalLM` class.
+            training_args (`DPOConfig`): The training arguments for the DPO model.
             kwargs (`dict`, `optional`):
                 Additional keyword arguments, that are passed to any `CustomModule` class.
         """
@@ -48,7 +50,7 @@ class AutoDPOModelForCausalLM(PreTrainedModelWrapper):
         if not any(hasattr(self.pretrained_model, attribute) for attribute in self.lm_head_namings):
             raise ValueError("The model does not have a language model head, please use a model that has one.")
 
-        self.beta = beta
+        self.beta = 0.1
         ###########################################################################################
         # TODO (Optional): Please uncomment the following lines to initialize your custom module
         # Make sure CustomModule is repalced with the name of your custom module class
@@ -215,6 +217,7 @@ class AutoDPOModelForCausalLM(PreTrainedModelWrapper):
 
         return output_dict
 
+
     def get_logprobs(self, batch, tokenizer):
         """
         Computes the log probabilities of a response using the model respectively.
@@ -240,7 +243,18 @@ class AutoDPOModelForCausalLM(PreTrainedModelWrapper):
         ###############################################################
         # TODO: Please implement your customized logprob computation here
         # =============================================================
-        raise NotImplementedError
+
+        # Tokenize (prompt + chosen) and (prompt + rejected) concatenated
+        chosen_inputs = tokenizer(batch["prompt"], batch["chosen"], return_tensors="pt", padding=True, truncation=True)
+        rejected_inputs = tokenizer(batch["prompt"], batch["rejected"], return_tensors="pt", padding=True, truncation=True)
+
+        # Generate outputs
+        chosen_outputs = self.model(**chosen_inputs)
+        rejected_outputs = self.model(**rejected_inputs)
+
+        # Compute log probabilities
+        chosen_logps = torch.log_softmax(chosen_outputs.logits, dim=-1)
+        rejected_logps = torch.log_softmax(rejected_outputs.logits, dim=-1)
         ###############################################################
 
         return chosen_logps, rejected_logps
@@ -280,14 +294,13 @@ class AutoDPOModelForCausalLM(PreTrainedModelWrapper):
         rejected_ratio = policy_rejected_logps - reference_rejected_logps
 
         # scaled ratios
-        chosen_rewards = self.beta * chosen_ratio.detach()
+        chosen_rewards = self.beta * chosen_ratio.detach()  # TODO: check if detach is needed
         rejected_rewards = self.beta * rejected_ratio.detach()
 
         output_dict = {
             "chosen_rewards": chosen_rewards.tolist(),
             "rejected_rewards": rejected_rewards.tolist()
         }
-
         ########################################################################
         return output_dict
 
@@ -352,9 +365,9 @@ class AutoDPOModelForSeq2SeqLM(PreTrainedModelWrapper):
 
         ###########################################################################################
         # TODO (Optional): Please uncomment the following lines to initialize your custom module
-        # Make sure CustomModule is repalced with the name of your custom module class
+        # Make sure CustomModule is replaced with the name of your custom module class
         # Remember that the below lines are just an example
-        # You can reanme the class and the variabels to fit your custom module name,
+        # You can rename the class and the variables to fit your custom module name,
         # just make sure they are consistent in the code
         # =========================================================================================
         # custom_module_kwargs, _, _ = self._split_kwargs(kwargs)
