@@ -31,6 +31,7 @@ class AutoDPOModelForCausalLM(PreTrainedModelWrapper):
     ####################################################################################
     # TODO (Optional): Please put any required arguments for your custom module here
     supported_args = ()
+
     ####################################################################################
 
     def __init__(self, pretrained_model, **kwargs):
@@ -50,7 +51,7 @@ class AutoDPOModelForCausalLM(PreTrainedModelWrapper):
         if not any(hasattr(self.pretrained_model, attribute) for attribute in self.lm_head_namings):
             raise ValueError("The model does not have a language model head, please use a model that has one.")
 
-        self.beta = 0.1
+        self.beta = 0.1  # TODO: Pass it in arguments
         ###########################################################################################
         # TODO (Optional): Please uncomment the following lines to initialize your custom module
         # Make sure CustomModule is repalced with the name of your custom module class
@@ -120,8 +121,8 @@ class AutoDPOModelForCausalLM(PreTrainedModelWrapper):
 
         if hasattr(self.pretrained_model, "hf_device_map"):
             if (
-                "cpu" in self.pretrained_model.hf_device_map.values()
-                or "disk" in self.pretrained_model.hf_device_map.values()
+                    "cpu" in self.pretrained_model.hf_device_map.values()
+                    or "disk" in self.pretrained_model.hf_device_map.values()
             ):
                 raise ValueError(
                     "The model is offloaded on CPU or disk - CPU & disk offloading is not supported for CustomModule models."
@@ -172,11 +173,11 @@ class AutoDPOModelForCausalLM(PreTrainedModelWrapper):
         return self.pretrained_model.push_to_hub(*args, **kwargs)
 
     def forward(
-        self,
-        input_ids=None,
-        past_key_values=None,
-        attention_mask=None,
-        **kwargs,
+            self,
+            input_ids=None,
+            past_key_values=None,
+            attention_mask=None,
+            **kwargs,
     ):
         """
         Applies a forward pass to the wrapped model and returns the output from the model.
@@ -208,7 +209,7 @@ class AutoDPOModelForCausalLM(PreTrainedModelWrapper):
         output = self.pretrained_model(input_ids=input_ids, attention_mask=attention_mask, **kwargs)
 
         output_dict = {
-            "logits": output.last_hidden_state,
+            "logits": output.logits,
             "hidden_states": output.hidden_states,
             "past_key_values": output.past_key_values,
             "attentions": output.attentions
@@ -216,7 +217,6 @@ class AutoDPOModelForCausalLM(PreTrainedModelWrapper):
         ###############################################################
 
         return output_dict
-
 
     def get_logprobs(self, batch, tokenizer):
         """
@@ -245,26 +245,28 @@ class AutoDPOModelForCausalLM(PreTrainedModelWrapper):
         # =============================================================
 
         # Tokenize (prompt + chosen) and (prompt + rejected) concatenated
-        chosen_inputs = tokenizer(batch["prompt"], batch["chosen"], return_tensors="pt", padding=True, truncation=True)
-        rejected_inputs = tokenizer(batch["prompt"], batch["rejected"], return_tensors="pt", padding=True, truncation=True)
+        chosen_inputs = tokenizer(batch["prompt"], batch["chosen"], return_tensors="pt",
+                                  padding="max_length", truncation=True)
+        rejected_inputs = tokenizer(batch["prompt"], batch["rejected"], return_tensors="pt", padding="max_length",
+                                    truncation=True)
 
         # Generate outputs
-        chosen_outputs = self.model(**chosen_inputs)
-        rejected_outputs = self.model(**rejected_inputs)
+        chosen_outputs = self.forward(**chosen_inputs)
+        rejected_outputs = self.forward(**rejected_inputs)
 
         # Compute log probabilities
-        chosen_logps = torch.log_softmax(chosen_outputs.logits, dim=-1)
-        rejected_logps = torch.log_softmax(rejected_outputs.logits, dim=-1)
+        chosen_logps = torch.log_softmax(chosen_outputs["logits"], dim=-1)
+        rejected_logps = torch.log_softmax(rejected_outputs["logits"], dim=-1)
         ###############################################################
 
         return chosen_logps, rejected_logps
 
     def prediction_step_reward(
-        self,
-        policy_chosen_logps: torch.FloatTensor,
-        policy_rejected_logps: torch.FloatTensor,
-        reference_chosen_logps: torch.FloatTensor,
-        reference_rejected_logps: torch.FloatTensor,
+            self,
+            policy_chosen_logps: torch.FloatTensor,
+            policy_rejected_logps: torch.FloatTensor,
+            reference_chosen_logps: torch.FloatTensor,
+            reference_rejected_logps: torch.FloatTensor,
     ):
         """
         Computes the reward scores of the chosen and reject responses by implementing the DPO reward function
@@ -298,8 +300,8 @@ class AutoDPOModelForCausalLM(PreTrainedModelWrapper):
         rejected_rewards = self.beta * rejected_ratio.detach()
 
         output_dict = {
-            "chosen_rewards": chosen_rewards.tolist(),
-            "rejected_rewards": rejected_rewards.tolist()
+            "chosen_rewards": chosen_rewards,
+            "rejected_rewards": rejected_rewards
         }
         ########################################################################
         return output_dict
@@ -355,6 +357,7 @@ class AutoDPOModelForSeq2SeqLM(PreTrainedModelWrapper):
     ####################################################################################
     # TODO (Optional): Please put any required arguments for your custom module here
     supported_args = ()
+
     ####################################################################################
 
     def __init__(self, pretrained_model, **kwargs):
@@ -439,8 +442,8 @@ class AutoDPOModelForSeq2SeqLM(PreTrainedModelWrapper):
 
         if hasattr(self.pretrained_model, "hf_device_map"):
             if (
-                "cpu" in self.pretrained_model.hf_device_map.values()
-                or "disk" in self.pretrained_model.hf_device_map.values()
+                    "cpu" in self.pretrained_model.hf_device_map.values()
+                    or "disk" in self.pretrained_model.hf_device_map.values()
             ):
                 raise ValueError(
                     "The model is offloaded on CPU or disk - CPU & disk offloading is not supported for CustomModule models."
@@ -491,11 +494,11 @@ class AutoDPOModelForSeq2SeqLM(PreTrainedModelWrapper):
         return self.pretrained_model.push_to_hub(*args, **kwargs)
 
     def forward(
-        self,
-        input_ids=None,
-        past_key_values=None,
-        attention_mask=None,
-        **kwargs,
+            self,
+            input_ids=None,
+            past_key_values=None,
+            attention_mask=None,
+            **kwargs,
     ):
         r"""
         Applies a forward pass to the wrapped model and returns the output from the model.
@@ -562,11 +565,11 @@ class AutoDPOModelForSeq2SeqLM(PreTrainedModelWrapper):
         return chosen_logps, rejected_logps
 
     def prediction_step_reward(
-        self,
-        policy_chosen_logps: torch.FloatTensor,
-        policy_rejected_logps: torch.FloatTensor,
-        reference_chosen_logps: torch.FloatTensor,
-        reference_rejected_logps: torch.FloatTensor,
+            self,
+            policy_chosen_logps: torch.FloatTensor,
+            policy_rejected_logps: torch.FloatTensor,
+            reference_chosen_logps: torch.FloatTensor,
+            reference_rejected_logps: torch.FloatTensor,
     ):
         """
         Computes the reward socres of the chosen and reject responses by implementing the DPO reward function
