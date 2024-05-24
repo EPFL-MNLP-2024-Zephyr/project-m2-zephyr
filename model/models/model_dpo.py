@@ -218,6 +218,14 @@ class AutoDPOModelForCausalLM(PreTrainedModelWrapper):
 
         return output_dict
 
+    def gather_logprobs(self, log_probs, input_ids):
+        flat_log_probs = log_probs.view(-1, log_probs.size(-1))
+        flat_input_ids = input_ids.view(-1, 1)
+
+        gathered_log_probs = torch.gather(flat_log_probs, dim=1, index=flat_input_ids).view(input_ids.size())
+
+        return gathered_log_probs
+
     def get_logprobs(self, batch, tokenizer):
         """
         Computes the log probabilities of a response using the model respectively.
@@ -257,6 +265,15 @@ class AutoDPOModelForCausalLM(PreTrainedModelWrapper):
         # Compute log probabilities
         chosen_logps = torch.log_softmax(chosen_outputs["logits"], dim=-1)
         rejected_logps = torch.log_softmax(rejected_outputs["logits"], dim=-1)
+
+        # For each tokens in the chosen and rejected, get its corresponding log prob
+        chosen_logps = self.gather_logprobs(chosen_logps, chosen_inputs["input_ids"])
+        rejected_logps = self.gather_logprobs(rejected_logps, rejected_inputs["input_ids"])
+
+        # Sum all the log probs for the chosen and the rejected and divide by the number of tokens
+        chosen_logps = chosen_logps.sum(dim=1) / chosen_inputs["attention_mask"].sum(dim=1)
+        rejected_logps = rejected_logps.sum(dim=1) / rejected_inputs["attention_mask"].sum(dim=1)
+
         ###############################################################
 
         return chosen_logps, rejected_logps
@@ -311,13 +328,12 @@ class AutoDPOModelForCausalLM(PreTrainedModelWrapper):
         Computes the mcqa prediction of the given question.
 
         Args:
-            batch (`list` of `dict`):
-                A list of dictionaries containing the input mcqa data for the DPO model.
+            batch (`dict` of `list`):
+                A dictionary containing the input mcqa data for the DPO model.
                 The data format is as follows:
                 {
-                    "question": str,
-                    "choices": List[str],
-                    "answer": str,
+                    "question": List[str], each <str> contains the question body and the choices
+                    "answer": List[str], each <str> is a single letter representing the correct answer
                 }
             tokenizer (`PreTrainedTokenizerBase`): The tokenizer used to tokenize the input questions.
         Returns:
