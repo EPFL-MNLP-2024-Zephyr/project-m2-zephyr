@@ -271,8 +271,8 @@ class AutoDPOModelForCausalLM(PreTrainedModelWrapper):
         rejected_logps = self.gather_logprobs(rejected_logps, rejected_inputs["input_ids"])
 
         # Sum all the log probs for the chosen and the rejected and divide by the number of tokens
-        chosen_logps = chosen_logps.sum(dim=1) / chosen_inputs["attention_mask"].sum(dim=1)
-        rejected_logps = rejected_logps.sum(dim=1) / rejected_inputs["attention_mask"].sum(dim=1)
+        chosen_logps = chosen_logps.sum(dim=-1) / chosen_inputs["attention_mask"].sum(dim=-1)
+        rejected_logps = rejected_logps.sum(dim=-1) / rejected_inputs["attention_mask"].sum(dim=-1)
 
         ###############################################################
 
