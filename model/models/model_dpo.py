@@ -1,10 +1,8 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
+from transformers import AutoModelForCausalLM, AutoModelForSeq2SeqLM
 
-from transformers import AutoModelForCausalLM, AutoModelForSeq2SeqLM, AutoTokenizer
-from models.model_base import PreTrainedModelWrapper
-from trl import DPOTrainer
+from model_base import PreTrainedModelWrapper
 
 
 class AutoDPOModelForCausalLM(PreTrainedModelWrapper):
@@ -34,7 +32,7 @@ class AutoDPOModelForCausalLM(PreTrainedModelWrapper):
 
     ####################################################################################
 
-    def __init__(self, pretrained_model, **kwargs):
+    def __init__(self, pretrained_model, beta=0.1, **kwargs):
         r"""
         Initializes the model.
 
@@ -51,7 +49,7 @@ class AutoDPOModelForCausalLM(PreTrainedModelWrapper):
         if not any(hasattr(self.pretrained_model, attribute) for attribute in self.lm_head_namings):
             raise ValueError("The model does not have a language model head, please use a model that has one.")
 
-        self.beta = 0.1  # TODO: Pass it in arguments
+        self.beta = beta
         ###########################################################################################
         # TODO (Optional): Please uncomment the following lines to initialize your custom module
         # Make sure CustomModule is repalced with the name of your custom module class
@@ -206,25 +204,12 @@ class AutoDPOModelForCausalLM(PreTrainedModelWrapper):
         ###############################################################
         # TODO: Please implement your customized forward pass here
         # =============================================================
-        output = self.pretrained_model(input_ids=input_ids, attention_mask=attention_mask, **kwargs)
 
-        output_dict = {
-            "logits": output.logits,
-            "hidden_states": output.hidden_states,
-            "past_key_values": output.past_key_values,
-            "attentions": output.attentions
-        }
+        output_dict = self.pretrained_model(input_ids=input_ids, attention_mask=attention_mask, **kwargs)
+
         ###############################################################
 
         return output_dict
-
-    def gather_logprobs(self, log_probs, input_ids):
-        flat_log_probs = log_probs.view(-1, log_probs.size(-1))
-        flat_input_ids = input_ids.view(-1, 1)
-
-        gathered_log_probs = torch.gather(flat_log_probs, dim=1, index=flat_input_ids).view(input_ids.size())
-
-        return gathered_log_probs
 
     def get_logprobs(self, batch, tokenizer):
         """
@@ -252,27 +237,28 @@ class AutoDPOModelForCausalLM(PreTrainedModelWrapper):
         # TODO: Please implement your customized logprob computation here
         # =============================================================
 
-        # Tokenize (prompt + chosen) and (prompt + rejected) concatenated
+        # Set the pad token of the tokenizer
+        tokenizer.pad_token = tokenizer.eos_token
+
+        # Tokenize the batch
         chosen_inputs = tokenizer(batch["prompt"], batch["chosen"], return_tensors="pt",
-                                  padding="max_length", truncation=True)
-        rejected_inputs = tokenizer(batch["prompt"], batch["rejected"], return_tensors="pt", padding="max_length",
+                                  padding=True, truncation=True)
+        rejected_inputs = tokenizer(batch["prompt"], batch["rejected"], return_tensors="pt", padding=True,
                                     truncation=True)
 
-        # Generate outputs
-        chosen_outputs = self.forward(**chosen_inputs)
-        rejected_outputs = self.forward(**rejected_inputs)
+        # Generate the outputs
+        with torch.no_grad():
+            chosen_outputs = self.forward(**chosen_inputs)
+            rejected_outputs = self.forward(**rejected_inputs)
 
-        # Compute log probabilities
-        chosen_logps = torch.log_softmax(chosen_outputs["logits"], dim=-1)
-        rejected_logps = torch.log_softmax(rejected_outputs["logits"], dim=-1)
+        # Compute the log probabilities
+        chosen_logps = torch.log_softmax(chosen_outputs.logits, dim=-1)
+        rejected_logps = torch.log_softmax(rejected_outputs.logits, dim=-1)
 
-        # For each tokens in the chosen and rejected, get its corresponding log prob
-        chosen_logps = self.gather_logprobs(chosen_logps, chosen_inputs["input_ids"])
-        rejected_logps = self.gather_logprobs(rejected_logps, rejected_inputs["input_ids"])
-
-        # Sum all the log probs for the chosen and the rejected and divide by the number of tokens
-        chosen_logps = chosen_logps.sum(dim=-1) / chosen_inputs["attention_mask"].sum(dim=-1)
-        rejected_logps = rejected_logps.sum(dim=-1) / rejected_inputs["attention_mask"].sum(dim=-1)
+        # Sum the log probs of the tokens in the chosen and rejected sentences
+        chosen_logps = torch.gather(chosen_logps, 2, chosen_inputs["input_ids"].unsqueeze(-1)).squeeze(-1).sum(dim=1)
+        rejected_logps = torch.gather(rejected_logps, 2, rejected_inputs["input_ids"].unsqueeze(-1)).squeeze(-1).sum(
+            dim=1)
 
         ###############################################################
 
@@ -308,13 +294,13 @@ class AutoDPOModelForCausalLM(PreTrainedModelWrapper):
         # You need to return one reward score for each chosen and rejected response.
         # ======================================================================
 
-        # log(p_policy / p_reference) = log(p_policy) - log(p_reference)
+        # Apply DPO formula: log(p_policy / p_reference) = log(p_policy) - log(p_reference)
         chosen_ratio = policy_chosen_logps - reference_chosen_logps
         rejected_ratio = policy_rejected_logps - reference_rejected_logps
 
-        # scaled ratios
-        chosen_rewards = self.beta * chosen_ratio.detach()  # TODO: check if detach is needed
-        rejected_rewards = self.beta * rejected_ratio.detach()
+        # Use beta to scale the ratios
+        chosen_rewards = self.beta * chosen_ratio
+        rejected_rewards = self.beta * rejected_ratio
 
         output_dict = {
             "chosen_rewards": chosen_rewards,
