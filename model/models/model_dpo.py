@@ -253,14 +253,13 @@ class AutoDPOModelForCausalLM(PreTrainedModelWrapper):
 
         print("Generate the outputs")
         # Generate the outputs
-        with torch.no_grad():
-            chosen_outputs = self.forward(**chosen_inputs)
-            rejected_outputs = self.forward(**rejected_inputs)
+        chosen_outputs = self.forward(**chosen_inputs)
+        rejected_outputs = self.forward(**rejected_inputs)
 
         print("Compute the log probabilities")
         # Compute the log probabilities
-        chosen_logps = torch.log_softmax(chosen_outputs.logits, dim=-1)
-        rejected_logps = torch.log_softmax(rejected_outputs.logits, dim=-1)
+        chosen_logps = torch.log_softmax(chosen_outputs["logits"], dim=-1)
+        rejected_logps = torch.log_softmax(rejected_outputs["logits"], dim=-1)
 
         print("Sum the log probs")
         # Sum the log probs of the tokens in the chosen and rejected sentences
