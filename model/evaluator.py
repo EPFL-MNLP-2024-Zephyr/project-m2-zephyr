@@ -187,18 +187,21 @@ class DPOModelEvaluator():
         """
         assert self.reference_model_path is not None, "You must provide the path to the reference model for reward computation!"
         assert self.reference_tokenizer is not None, "You must provide the tokenizer for the reference model for reward computation!"
-
+        print(1)
         test_data_map = {}
         for data in test_data:
             test_data_map[data['prompt']] = {}
+        print(test_data_map)
         test_dataloader = DataLoader(test_data, batch_size=8)
+        print(2)
         reference_model = self.model_class.from_pretrained(
             self.reference_model_path)
-
+        print(3)
         for idx, batch in enumerate(test_dataloader):
             try:
                 chosen_logps, rejected_logps = reference_model.get_logprobs(batch, self.reference_tokenizer)
             except Exception as e:
+                print('ERROR')
                 logger.error(f"Error in batch {idx}: {e}! \n Please check your implementation and the return format!")
                 continue
             for prompt, chosen_logp, rejected_logp in zip(batch["prompt"], chosen_logps, rejected_logps):
@@ -370,7 +373,7 @@ class QuantizedEvaluator():
 if __name__ == '__main__':
     # Basic repository check to ensure the submission is correct
     repository_check()
-    print(1)
+
     # Load the main configuration file
     main_config = {}
     with open("main_config.yaml") as f:
@@ -378,33 +381,33 @@ if __name__ == '__main__':
             main_config = yaml.safe_load(f)
         except Exception as e:
             logger.error(f"Error loading main_config.yaml: {e}! Please check the file format.")
-    print(2)
+
     # Load the task type to identify the model class
     task_type = main_config.get("task_type", "causal_lm")
-    print(3)
+
     # Load the evaluation methods and the required paths
     eval_method = main_config.get("eval_method", ["mcqa"])
     policy_model_path = main_config["policy_model_path"]
     reference_model_path = main_config["reference_model_path"]
     test_data_path = main_config["test_data_path"]
-    print(4)
+
     # Load the test data
     test_data = read_jsonl(test_data_path)
-    print(5)
+
     # Load the model arguments
     dpo_model_args = main_config.get("dpo_model_args", {})
     rag_model_args = main_config.get("rag_model_args", {})
     quantized_model_args = main_config.get("quantized_model_args", {})
-    print(6)
+
     # Initialize the metrics dictionary
     metrics = {
         "team_name": main_config.get("team_name", "Team Name"),
         "task_type": task_type,
     }
-    print(7)
+
     # Ensure that the evaluation methods are not conflicting
     assert not ("reward" in eval_method and "mcqa" in eval_method), "You cannot evaluate both reward and mcqa at the same time!"
-    print(8)
+
     # Initialize the evaluator based on the evaluation method and compute the metrics
     if "reward" in eval_method:
         evaluator = DPOModelEvaluator(
@@ -413,17 +416,12 @@ if __name__ == '__main__':
             reference_model_path=reference_model_path,
             dpo_model_args=dpo_model_args
         )
-        print(9)
         # Compute the log probabilities of the reference model for the test data
         new_test_data = evaluator.compute_reference_logprobs(test_data)
-        print(10)
         test_dataloader = DataLoader(new_test_data, batch_size=8)
         # compute the reward accuracy
-        print(11)
         policy_reward_acc = evaluator.scoring_reward_computation(test_dataloader)
-        print(12)
         metrics["policy_reward_accuracy"] = policy_reward_acc
-        print(13)
 
     elif "mcqa" in eval_method:
         test_dataloader = DataLoader(test_data, batch_size=8)
@@ -466,9 +464,7 @@ if __name__ == '__main__':
                 quantized_policy_acc = evaluator.scoring_quantization(test_dataloader)
                 metrics["quantized_policy_acc"] = quantized_policy_acc
 
-        print(14)
         logger.info("Evaluation Completed! Results:")
-        print(15)
         logger.info(metrics)
 
     # Write the metrics to a JSON file
