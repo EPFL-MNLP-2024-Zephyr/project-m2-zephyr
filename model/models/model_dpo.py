@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from transformers import AutoModelForCausalLM, AutoModelForSeq2SeqLM
 
-from model_base import PreTrainedModelWrapper
+from models.model_base import PreTrainedModelWrapper
 
 
 class AutoDPOModelForCausalLM(PreTrainedModelWrapper):
