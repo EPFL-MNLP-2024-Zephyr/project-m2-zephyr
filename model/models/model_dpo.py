@@ -49,6 +49,10 @@ class AutoDPOModelForCausalLM(PreTrainedModelWrapper):
         if not any(hasattr(self.pretrained_model, attribute) for attribute in self.lm_head_namings):
             raise ValueError("The model does not have a language model head, please use a model that has one.")
 
+        device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+        print(f'Using device: {device}')
+
+        self.pretrained_model.to(device)
         self.beta = beta
         ###########################################################################################
         # TODO (Optional): Please uncomment the following lines to initialize your custom module
