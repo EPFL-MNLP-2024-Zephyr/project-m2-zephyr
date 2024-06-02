@@ -246,9 +246,13 @@ class AutoDPOModelForCausalLM(PreTrainedModelWrapper):
 
         # Tokenize the batch
         chosen_inputs = tokenizer(batch["prompt"], batch["chosen"], return_tensors="pt",
-                                  padding="max_length", truncation=True).to(self.device)
+                                  padding="max_length", truncation=True)
         rejected_inputs = tokenizer(batch["prompt"], batch["rejected"], return_tensors="pt", padding="max_length",
-                                    truncation=True).to(self.device)
+                                    truncation=True)
+
+        # Move the input tensors to the same device as the model
+        chosen_inputs = {key: value.to(self.device) for key, value in chosen_inputs.items()}
+        rejected_inputs = {key: value.to(self.device) for key, value in rejected_inputs.items()}
 
         # Generate the outputs
         with torch.no_grad():
