@@ -242,7 +242,7 @@ class DPOModelEvaluator():
             **self.dpo_model_args
         )
 
-        for idx, batch in enumerate(test_dataloader):
+        for idx, batch in tqdm(enumerate(test_dataloader), total=len(test_dataloader)):
             try:
                 reference_chosen_logps = batch["chosen_logps"]
                 reference_rejected_logps = batch["rejected_logps"]
