@@ -4,6 +4,7 @@ import glob
 import torch
 import logging
 import numpy as np
+from tqdm import tqdm
 
 from torch.utils.data import DataLoader
 from sklearn.metrics import accuracy_score
@@ -195,7 +196,7 @@ class DPOModelEvaluator():
         reference_model = self.model_class.from_pretrained(
             self.reference_model_path)
 
-        for idx, batch in enumerate(test_dataloader):
+        for idx, batch in tqdm(enumerate(test_dataloader)):
             try:
                 chosen_logps, rejected_logps = reference_model.get_logprobs(batch, self.reference_tokenizer)
             except Exception as e:

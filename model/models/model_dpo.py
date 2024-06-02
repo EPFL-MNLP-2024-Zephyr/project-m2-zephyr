@@ -206,7 +206,6 @@ class AutoDPOModelForCausalLM(PreTrainedModelWrapper):
         # =============================================================
 
         output_dict = self.pretrained_model(input_ids=input_ids, attention_mask=attention_mask, **kwargs)
-        print("output_dict.keys():", output_dict.keys())
 
         ###############################################################
 
@@ -238,29 +237,24 @@ class AutoDPOModelForCausalLM(PreTrainedModelWrapper):
         # TODO: Please implement your customized logprob computation here
         # =============================================================
 
-        print("Inputs: ", batch)
         # Set the pad token of the tokenizer
         tokenizer.pad_token = tokenizer.eos_token
 
-        print("Tokenize the batch")
         # Tokenize the batch
         chosen_inputs = tokenizer(batch["prompt"], batch["chosen"], return_tensors="pt",
                                   padding=True, truncation=True)
         rejected_inputs = tokenizer(batch["prompt"], batch["rejected"], return_tensors="pt", padding=True,
                                     truncation=True)
 
-        print("Generate the outputs")
         # Generate the outputs
         with torch.no_grad():
             chosen_outputs = self.forward(**chosen_inputs)
             rejected_outputs = self.forward(**rejected_inputs)
 
-        print("Compute the log probabilities")
         # Compute the log probabilities
         chosen_logps = torch.log_softmax(chosen_outputs.logits, dim=-1)
         rejected_logps = torch.log_softmax(rejected_outputs.logits, dim=-1)
 
-        print("Sum the log probs")
         # Sum the log probs of the tokens in the chosen and rejected sentences
         chosen_logps = torch.gather(chosen_logps, 2, chosen_inputs["input_ids"].unsqueeze(-1)).squeeze(-1).sum(dim=1)
         rejected_logps = torch.gather(rejected_logps, 2, rejected_inputs["input_ids"].unsqueeze(-1)).squeeze(-1).sum(
