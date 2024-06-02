@@ -49,10 +49,6 @@ class AutoDPOModelForCausalLM(PreTrainedModelWrapper):
         if not any(hasattr(self.pretrained_model, attribute) for attribute in self.lm_head_namings):
             raise ValueError("The model does not have a language model head, please use a model that has one.")
 
-        self.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-        print(f'Using device: {self.device}')
-
-        self.pretrained_model.to(self.device)
         self.beta = beta
         ###########################################################################################
         # TODO (Optional): Please uncomment the following lines to initialize your custom module
@@ -249,10 +245,6 @@ class AutoDPOModelForCausalLM(PreTrainedModelWrapper):
                                   padding="max_length", truncation=True)
         rejected_inputs = tokenizer(batch["prompt"], batch["rejected"], return_tensors="pt", padding="max_length",
                                     truncation=True)
-
-        # Move the input tensors to the same device as the model
-        chosen_inputs = {key: value.to(self.device) for key, value in chosen_inputs.items()}
-        rejected_inputs = {key: value.to(self.device) for key, value in rejected_inputs.items()}
 
         # Generate the outputs
         with torch.no_grad():
