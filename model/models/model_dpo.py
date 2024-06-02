@@ -239,7 +239,6 @@ class AutoDPOModelForCausalLM(PreTrainedModelWrapper):
         # =============================================================
 
         print("Inputs: ", batch)
-        print("Computing log probabilities...")
         # Set the pad token of the tokenizer
         tokenizer.pad_token = tokenizer.eos_token
 
@@ -250,16 +249,16 @@ class AutoDPOModelForCausalLM(PreTrainedModelWrapper):
         rejected_inputs = tokenizer(batch["prompt"], batch["rejected"], return_tensors="pt", padding=True,
                                     truncation=True)
 
-
         print("Generate the outputs")
         # Generate the outputs
-        chosen_outputs = self.forward(**chosen_inputs)
-        rejected_outputs = self.forward(**rejected_inputs)
+        with torch.no_grad():
+            chosen_outputs = self.forward(**chosen_inputs)
+            rejected_outputs = self.forward(**rejected_inputs)
 
         print("Compute the log probabilities")
         # Compute the log probabilities
-        chosen_logps = torch.log_softmax(chosen_outputs["logits"], dim=-1)
-        rejected_logps = torch.log_softmax(rejected_outputs["logits"], dim=-1)
+        chosen_logps = torch.log_softmax(chosen_outputs.logits, dim=-1)
+        rejected_logps = torch.log_softmax(rejected_outputs.logits, dim=-1)
 
         print("Sum the log probs")
         # Sum the log probs of the tokens in the chosen and rejected sentences
