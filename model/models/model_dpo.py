@@ -209,7 +209,7 @@ class AutoDPOModelForCausalLM(PreTrainedModelWrapper):
         # TODO: Please implement your customized forward pass here
         # =============================================================
 
-        output_dict = self.pretrained_model(input_ids=input_ids.to(self.device), attention_mask=attention_mask.to(self.device), **kwargs)
+        output_dict = self.pretrained_model(input_ids=input_ids, attention_mask=attention_mask, **kwargs)
 
         ###############################################################
 
@@ -246,9 +246,9 @@ class AutoDPOModelForCausalLM(PreTrainedModelWrapper):
 
         # Tokenize the batch
         chosen_inputs = tokenizer(batch["prompt"], batch["chosen"], return_tensors="pt",
-                                  padding="max_length", truncation=True)
+                                  padding="max_length", truncation=True).to(self.device)
         rejected_inputs = tokenizer(batch["prompt"], batch["rejected"], return_tensors="pt", padding="max_length",
-                                    truncation=True)
+                                    truncation=True).to(self.device)
 
         # Generate the outputs
         with torch.no_grad():
