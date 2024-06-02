@@ -9,3 +9,5 @@ accelerate
 torch
 bitsandbytes
 peft
+git+https://github.com/huggingface/trl.git
+tqdm
