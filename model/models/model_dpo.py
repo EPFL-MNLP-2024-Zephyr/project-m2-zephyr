@@ -49,10 +49,10 @@ class AutoDPOModelForCausalLM(PreTrainedModelWrapper):
         if not any(hasattr(self.pretrained_model, attribute) for attribute in self.lm_head_namings):
             raise ValueError("The model does not have a language model head, please use a model that has one.")
 
-        device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-        print(f'Using device: {device}')
+        self.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+        print(f'Using device: {self.device}')
 
-        self.pretrained_model.to(device)
+        self.pretrained_model.to(self.device)
         self.beta = beta
         ###########################################################################################
         # TODO (Optional): Please uncomment the following lines to initialize your custom module
@@ -209,7 +209,7 @@ class AutoDPOModelForCausalLM(PreTrainedModelWrapper):
         # TODO: Please implement your customized forward pass here
         # =============================================================
 
-        output_dict = self.pretrained_model(input_ids=input_ids, attention_mask=attention_mask, **kwargs)
+        output_dict = self.pretrained_model(input_ids=input_ids.to(self.device), attention_mask=attention_mask.to(self.device), **kwargs)
 
         ###############################################################
 
