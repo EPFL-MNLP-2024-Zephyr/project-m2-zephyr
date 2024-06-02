@@ -206,7 +206,8 @@ class AutoDPOModelForCausalLM(PreTrainedModelWrapper):
         # =============================================================
 
         output_dict = self.pretrained_model(input_ids=input_ids, attention_mask=attention_mask, **kwargs)
-        print("output_dict", output_dict)
+        print("output_dict.keys():", output_dict.keys())
+
         ###############################################################
 
         return output_dict
