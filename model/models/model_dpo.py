@@ -206,7 +206,7 @@ class AutoDPOModelForCausalLM(PreTrainedModelWrapper):
         # =============================================================
 
         output_dict = self.pretrained_model(input_ids=input_ids, attention_mask=attention_mask, **kwargs)
-
+        print("output_dict", output_dict)
         ###############################################################
 
         return output_dict
@@ -245,8 +245,8 @@ class AutoDPOModelForCausalLM(PreTrainedModelWrapper):
         print("Tokenize the batch")
         # Tokenize the batch
         chosen_inputs = tokenizer(batch["prompt"], batch["chosen"], return_tensors="pt",
-                                  padding="max_length", truncation=True)
-        rejected_inputs = tokenizer(batch["prompt"], batch["rejected"], return_tensors="pt", padding="max_length",
+                                  padding=True, truncation=True)
+        rejected_inputs = tokenizer(batch["prompt"], batch["rejected"], return_tensors="pt", padding=True,
                                     truncation=True)
 
 
