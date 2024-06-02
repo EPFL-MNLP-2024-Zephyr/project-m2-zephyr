@@ -187,21 +187,19 @@ class DPOModelEvaluator():
         """
         assert self.reference_model_path is not None, "You must provide the path to the reference model for reward computation!"
         assert self.reference_tokenizer is not None, "You must provide the tokenizer for the reference model for reward computation!"
-        print(1)
+
         test_data_map = {}
         for data in test_data:
             test_data_map[data['prompt']] = {}
-        print(test_data_map)
         test_dataloader = DataLoader(test_data, batch_size=8)
-        print(2)
+        print(test_dataloader[0])
         reference_model = self.model_class.from_pretrained(
             self.reference_model_path)
-        print(3)
+
         for idx, batch in enumerate(test_dataloader):
             try:
                 chosen_logps, rejected_logps = reference_model.get_logprobs(batch, self.reference_tokenizer)
             except Exception as e:
-                print('ERROR')
                 logger.error(f"Error in batch {idx}: {e}! \n Please check your implementation and the return format!")
                 continue
             for prompt, chosen_logp, rejected_logp in zip(batch["prompt"], chosen_logps, rejected_logps):
