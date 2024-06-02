@@ -464,6 +464,5 @@ if __name__ == '__main__':
         logger.info("Evaluation Completed! Results:")
         logger.info(metrics)
 
-    print(metrics)
     # Write the metrics to a JSON file
     write_json(metrics, "metrics.json")
