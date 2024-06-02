@@ -192,7 +192,6 @@ class DPOModelEvaluator():
         for data in test_data:
             test_data_map[data['prompt']] = {}
         test_dataloader = DataLoader(test_data, batch_size=8)
-        print(test_dataloader[0])
         reference_model = self.model_class.from_pretrained(
             self.reference_model_path)
 
