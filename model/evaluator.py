@@ -196,7 +196,7 @@ class DPOModelEvaluator():
         reference_model = self.model_class.from_pretrained(
             self.reference_model_path)
 
-        for idx, batch in tqdm(enumerate(test_dataloader)):
+        for idx, batch in tqdm(enumerate(test_dataloader), total=len(test_dataloader)):
             try:
                 chosen_logps, rejected_logps = reference_model.get_logprobs(batch, self.reference_tokenizer)
             except Exception as e:

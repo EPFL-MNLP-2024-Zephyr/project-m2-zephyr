@@ -242,8 +242,8 @@ class AutoDPOModelForCausalLM(PreTrainedModelWrapper):
 
         # Tokenize the batch
         chosen_inputs = tokenizer(batch["prompt"], batch["chosen"], return_tensors="pt",
-                                  padding=True, truncation=True)
-        rejected_inputs = tokenizer(batch["prompt"], batch["rejected"], return_tensors="pt", padding=True,
+                                  padding="max_length", truncation=True)
+        rejected_inputs = tokenizer(batch["prompt"], batch["rejected"], return_tensors="pt", padding="max_length",
                                     truncation=True)
 
         # Generate the outputs
